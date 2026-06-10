@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fantasy Fitness Game</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FitGame">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- ตั้งค่าให้เต็มจอแบบ Native App --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Nunito', sans-serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #1e293b;
+            color: #ffffff;
+            overflow: hidden; /* ล็อกไม่ให้หน้าเว็บเด้งหรือเลื่อนเละเทะ */
+        }
+
+        .mobile-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ส่วนจัดเก็บหน้าจอทั้งหมด (เผื่อพื้นที่ด้านล่างให้เมนู) */
+        .screens-wrapper {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 90px);
+            /* ป้องกันรอยแหว่งบน iPhone (Notch) */
+            padding-top: env(safe-area-inset-top); 
+        }
+
+        /* --- [ส่วน CSS เกมของคุณเหมือนเดิมทุกอย่าง วางต่อตรงนี้ได้เลย] --- */
+        .game-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; overflow-y: auto; padding-bottom: 20px; }
+        .game-screen.active { display: flex; }
+        .game-screen::-webkit-scrollbar { display: none; }
+        
+        /* ใส่ CSS ที่เหลือของคุณตรงนี้... (โค้ด .screen-header, .shop-tabs, .play-content-area ฯลฯ เหมือนเดิมเป๊ะ) */
+         /* ส่วนจัดเก็บหน้าจอทั้งหมด */
+        .screens-wrapper {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            height: calc(100% - 90px);
+        }
+
+        /* สไตล์หลักของทุกหน้าจอ */
+        .game-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none; /* ซ่อนหน้าจอเริ่มต้น */
+            flex-direction: column;
+            overflow-y: auto;
+            padding-bottom: 20px;
+        }
+
+        /* แสดงหน้าจอที่ถูกเลือก */
+        .game-screen.active {
+            display: flex;
+        }
+
+        /* ซ่อน Scrollbar สำหรับความสวยงาม */
+        .game-screen::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* หัวข้อหลักประจำหน้า (Header Titles) */
+        .screen-header {
+            padding: 30px 24px 15px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .screen-title {
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            text-transform: capitalize;
+        }
+
+        /* ==========================================================================
+           1. SCREEN: PLAY (หน้าหลักเดิมที่ปรับปรุงสภาพแวดล้อม)
+           ========================================================================== */
+        #screen-play {
+            background: linear-gradient(180deg, #38bdf8 0%, #bae6fd 60%, #e0f2fe 100%);
+            padding-bottom: 0;
+        }
+        .sky-area { position: relative; height: 55%; width: 100%; }
+        .sun { position: absolute; top: -10px; right: -10px; width: 110px; height: 110px; background: #fde047; border-radius: 50%; box-shadow: 0 0 40px rgba(253, 224, 71, 0.7); }
+        .cloud { position: absolute; background: #ffffff; border-radius: 100px; }
+        .cloud-1 { top: 60px; left: -20px; width: 180px; height: 60px; opacity: 0.9; }
+        .cloud-2 { top: 100px; right: -30px; width: 220px; height: 75px; opacity: 0.95; }
+        .forest-bg { position: absolute; bottom: 0; width: 100%; height: 140px; display: flex; justify-content: space-around; align-items: flex-end; padding: 0 10px; }
+        .tree { width: 60px; height: 110px; background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%); border-radius: 40px 40px 10px 10px; position: relative; box-shadow: 0 5px 10px rgba(0,0,0,0.1); }
+        .tree::before { content: ''; position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); width: 10px; height: 30px; background: #78350f; z-index: -1; border-radius: 4px; }
+        
+        .play-content-area { position: relative; height: 45%; background: linear-gradient(180deg, #a3e635 0%, #65a30d 100%); display: flex; flex-direction: column; align-items: center; padding-top: 20px; }
+        .hp-box { display: flex; align-items: center; background: rgba(0, 0, 0, 0.4); padding: 6px 14px; border-radius: 30px; margin-bottom: 20px; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); }
+        .hp-bar-outer { width: 150px; height: 12px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; overflow: hidden; margin: 0 10px; }
+        .hp-bar-inner { width: 100%; height: 100%; background: linear-gradient(90deg, #22c55e 0%, #10b981 100%); }
+        
+        .char-container { position: relative; display: flex; flex-direction: column; align-items: center; margin-top: 10px; }
+        .char-shadow { width: 90px; height: 14px; background: rgba(0,0,0,0.25); border-radius: 50%; filter: blur(2px); position: absolute; bottom: -5px; }
+        .char-sprite { width: 100px; height: 130px; background: #334155; border-radius: 20px; border: 3px solid #475569; display: flex; justify-content: center; align-items: center; font-size: 11px; text-align: center; color: #94a3b8; font-weight: 800; box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 1; }
+
+        /* ==========================================================================
+           2. SCREEN: EQUIPMENT (หน้าสวมใส่ไอเทม & กระเป๋า)
+           ========================================================================== */
+        .equip-layout { display: flex; justify-content: space-around; align-items: center; padding: 10px 20px; position: relative; }
+        .equip-column { display: flex; flex-direction: column; gap: 15px; }
+        .equip-slot { width: 68px; height: 68px; background: #1e293b; border: 2px solid #334155; border-radius: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 9px; font-weight: 800; color: #64748b; box-shadow: inset 0 4px 6px rgba(0,0,0,0.2); }
+        .slot-icon { font-size: 20px; margin-bottom: 2px; }
+        
+        .inventory-section { background: #111827; border-radius: 30px 30px 0 0; flex: 1; margin-top: 25px; padding: 24px; box-shadow: 0 -10px 25px rgba(0,0,0,0.2); }
+        .inventory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; max-height: 320px; overflow-y: auto; }
+        .inv-item { aspect-ratio: 1; background: #1f2937; border-radius: 16px; border: 1px solid #374151; display: flex; justify-content: center; align-items: center; font-size: 24px; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .inv-item:active { transform: scale(0.95); }
+
+        /* ==========================================================================
+           3. SCREEN: SHOP (หน้าร้านค้าซื้อไอเทม)
+           ========================================================================== */
+        .coin-badge { background: #334155; padding: 6px 14px; border-radius: 20px; display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 14px; border: 1px solid #475569; }
+        .coin-icon { color: #f59e0b; }
+        
+        .shop-tabs { display: flex; gap: 10px; padding: 10px 24px; overflow-x: auto; white-space: nowrap; }
+        .shop-tabs::-webkit-scrollbar { display: none; }
+        .shop-tab { background: #1e293b; border: 1px solid #334155; padding: 8px 18px; border-radius: 20px; font-size: 13px; font-weight: 800; color: #94a3b8; cursor: pointer; }
+        .shop-tab.active { background: #3b82f6; color: #ffffff; border-color: #3b82f6; box-shadow: 0 4px 10px rgba(59,130,246,0.3); }
+        
+        .shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding: 20px 24px; }
+        .shop-card { background: #1e293b; border-radius: 24px; border: 1px solid #334155; padding: 14px; display: flex; flex-direction: column; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .item-preview { height: 100px; background: #111827; border-radius: 16px; display: flex; justify-content: center; align-items: center; font-size: 40px; margin-bottom: 12px; }
+        .item-name { font-size: 14px; font-weight: 900; margin-bottom: 2px; }
+        .item-stat { font-size: 11px; color: #10b981; font-weight: 800; margin-bottom: 12px; }
+        .shop-footer { display: flex; justify-content: space-between; align-items: center; }
+        .item-price { font-size: 14px; font-weight: 800; color: #f59e0b; }
+        .buy-btn { background: #ffffff; color: #0f172a; border: none; padding: 6px 14px; border-radius: 12px; font-size: 12px; font-weight: 900; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        /* ==========================================================================
+           4. SCREEN: QUEST (หน้าต่างภารกิจออกกำลังกาย)
+           ========================================================================== */
+        .quest-section { padding: 0 24px 20px 24px; }
+        .section-label { font-size: 12px; font-weight: 900; color: #64748b; letter-spacing: 1px; margin-bottom: 12px; text-transform: uppercase; }
+        
+        .quest-card { background: #1e293b; border-radius: 24px; border: 1px solid #334155; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); margin-bottom: 20px; }
+        .quest-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .quest-title-text { font-size: 18px; font-weight: 900; }
+        .quest-lvl { background: #334155; font-size: 11px; padding: 4px 8px; border-radius: 8px; font-weight: 800; color: #94a3b8; }
+        
+        .sub-task-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .sub-task { background: #111827; padding: 12px 16px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #1f2937; }
+        .task-info-title { font-size: 13px; font-weight: 800; }
+        .task-info-desc { font-size: 11px; color: #64748b; font-weight: 600; margin-top: 2px; }
+        .task-icon { font-size: 20px; }
+        
+        .action-btn { width: 100%; background: #ffffff; color: #0f172a; border: none; padding: 12px; border-radius: 16px; font-size: 14px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 10px rgba(255,255,255,0.1); transition: background-color 0.2s; }
+        .action-btn:active { background-color: #e2e8f0; }
+
+        .side-quest-body { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .reward-xp { color: #84cc16; font-size: 12px; font-weight: 800; margin-top: 4px; }
+
+        /* ==========================================================================
+           5. SCREEN: PROFILE (หน้าข้อมูลสถิติผู้เล่น)
+           ========================================================================== */
+        .profile-hero { display: flex; flex-direction: column; align-items: center; padding: 10px 24px 20px 24px; position: relative; }
+        .settings-btn { position: absolute; top: 10px; right: 24px; font-size: 22px; color: #64748b; cursor: pointer; }
+        .avatar-circle { width: 100px; height: 100px; background: #334155; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 50px; border: 3px solid #475569; margin-bottom: 14px; box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
+        .profile-name { font-size: 22px; font-weight: 900; }
+        .profile-lvl { font-size: 13px; color: #64748b; font-weight: 800; margin-top: 2px; }
+        
+        .exp-container { width: 100%; max-width: 280px; margin-top: 15px; }
+        .exp-labels { display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; font-weight: 800; margin-bottom: 6px; }
+        .exp-bar-bg { width: 100%; height: 8px; background: #111827; border-radius: 10px; overflow: hidden; }
+        .exp-bar-fill { width: 52%; height: 100%; background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%); }
+        
+        .stats-section { padding: 10px 24px; }
+        .stat-row { display: flex; align-items: center; margin-bottom: 14px; background: #111827; padding: 10px 14px; border-radius: 16px; border: 1px solid #1f2937; }
+        .stat-label-box { width: 80px; font-size: 12px; font-weight: 900; color: #94a3b8; }
+        .stat-bar-outer { flex: 1; height: 8px; background: #1e293b; border-radius: 10px; overflow: hidden; margin-right: 14px; }
+        .stat-bar-inner { height: 100%; background: #ffffff; border-radius: 10px; }
+        .stat-value { font-size: 13px; font-weight: 800; width: 25px; text-align: right; margin-right: 10px; }
+        .stat-plus-btn { width: 20px; height: 20px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: 900; color: #38bdf8; cursor: pointer; }
+
+        .achieve-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .achieve-slot { aspect-ratio: 1; background: #111827; border-radius: 16px; border: 1px solid #1f2937; display: flex; justify-content: center; align-items: center; font-size: 24px; }
+
+        /* ==========================================================================
+           แถบเมนูด้านล่างสุด (Persistent Bottom Navigation)
+           ========================================================================== */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 90px;
+            background: #0f172a;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            align-items: center;
+            padding: 0 10px 10px 10px;
+            z-index: 100;
+            border-radius: 30px 30px 0 0;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        /* เมื่อแท็บนั้นถูกคลิกเปิดใช้งานอยู่ */
+        .nav-item.active {
+            color: #38bdf8;
+        }
+
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 5px;
+            fill: currentColor;
+            transition: transform 0.2s;
+        }
+
+        .nav-item.active .nav-icon {
+            transform: scale(1.1);
+        }
+
+        /* ปุ่มตรงกลางเด่นเป็นพิเศษ (PLAY) */
+        .nav-item.play-main {
+            position: relative;
+            align-self: flex-start;
+            margin-top: -32px;
+            height: 95px;
+            color: #ffffff;
+        }
+
+        .play-btn-circle {
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: 4px solid #0f172a;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+            transition: all 0.2s;
+        }
+
+        .nav-item.play-main.active .play-btn-circle {
+            background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%);
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.6);
+            transform: scale(1.05);
+        }
+
+        .play-btn-circle .nav-icon {
+            width: 32px;
+            height: 32px;
+            color: #ffffff;
+            margin-bottom: 0;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        .play-main span {
+            font-size: 13px;
+            font-weight: 900;
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: calc(90px + env(safe-area-inset-bottom));
+            background: #0f172a;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            align-items: flex-start;
+            padding: 10px 10px calc(10px + env(safe-area-inset-bottom)) 10px;
+            z-index: 100;
+            border-radius: 30px 30px 0 0;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);}
+    </style>
+</head>
+<body>
+
+    <div class="mobile-container">
+        
+        <div class="screens-wrapper">
+            
+            <div class="game-screen" id="screen-shop">
+                <div class="screen-header">
+                    <h1 class="screen-title">Shop</h1>
+                    <div class="coin-badge">
+                        <span class="coin-icon">🪙</span> 2,750
+                    </div>
+                </div>
+                <div class="shop-tabs">
+                    <div class="shop-tab active">All</div>
+                    <div class="shop-tab">Sword</div>
+                    <div class="shop-tab">Armor</div>
+                    <div class="shop-tab">Boost</div>
+                    <div class="shop-tab">Helm</div>
+                </div>
+                <div class="shop-grid">
+                    <div class="shop-card">
+                        <div class="item-preview">❄️🗡️</div>
+                        <div class="item-name">Ice Sword</div>
+                        <div class="item-stat">+10% Basic ATK</div>
+                        <div class="shop-footer">
+                            <span class="item-price">🪙 1,000</span>
+                            <button class="buy-btn">BUY</button>
+                        </div>
+                    </div>
+                    <div class="shop-card">
+                        <div class="item-preview">🧪🔴</div>
+                        <div class="item-name">Health Potion</div>
+                        <div class="item-stat">+100 HP</div>
+                        <div class="shop-footer">
+                            <span class="item-price">🪙 250</span>
+                            <button class="buy-btn">BUY</button>
+                        </div>
+                    </div>
+                    <div class="shop-card">
+                        <div class="item-preview">🪓✨</div>
+                        <div class="item-name">Axe</div>
+                        <div class="item-stat">+20% Crit Rate</div>
+                        <div class="shop-footer">
+                            <span class="item-price">🪙 2,450</span>
+                            <button class="buy-btn">BUY</button>
+                        </div>
+                    </div>
+                    <div class="shop-card">
+                        <div class="item-preview">🏹🎯</div>
+                        <div class="item-name">Bow</div>
+                        <div class="item-stat">+10 Rage</div>
+                        <div class="shop-footer">
+                            <span class="item-price">🪙 1,500</span>
+                            <button class="buy-btn">BUY</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="game-screen" id="screen-equipment">
+                <div class="screen-header">
+                    <h1 class="screen-title">Equipment</h1>
+                </div>
+                <div class="equip-layout">
+                    <div class="equip-column">
+                        <div class="equip-slot"><span class="slot-icon">🥊</span>GLOVES</div>
+                        <div class="equip-slot"><span class="slot-icon">🗡️</span>SWORD</div>
+                    </div>
+                    <div class="char-container">
+                        <div class="char-sprite">Character<br>Preview</div>
+                        <div class="char-shadow"></div>
+                    </div>
+                    <div class="equip-column">
+                        <div class="equip-slot"><span class="slot-icon">🪖</span>HELMET</div>
+                        <div class="equip-slot"><span class="slot-icon">👕</span>ARMOR</div>
+                        <div class="equip-slot"><span class="slot-icon">🥾</span>SHOES</div>
+                    </div>
+                </div>
+                <div class="inventory-section">
+                    <div class="inventory-grid">
+                        <div class="inv-item">👑</div>
+                        <div class="inv-item">🔱</div>
+                        <div class="inv-item">👢</div>
+                        <div class="inv-item">🛡️</div>
+                        <div class="inv-item">⚔️</div>
+                        <div class="inv-item">💎</div>
+                        <div class="inv-item"></div>
+                        <div class="inv-item"></div>
+                        <div class="inv-item"></div>
+                        <div class="inv-item"></div>
+                        <div class="inv-item"></div>
+                        <div class="inv-item"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="game-screen active" id="screen-play">
+                <div class="sky-area">
+                    <div class="sun"></div>
+                    <div class="cloud cloud-1"></div>
+                    <div class="cloud cloud-2"></div>
+                    <div class="forest-bg">
+                        <div class="tree" style="height:100px; opacity:0.9;"></div>
+                        <div class="tree" style="height:120px;"></div>
+                        <div class="tree" style="height:95px; opacity:0.8;"></div>
+                    </div>
+                </div>
+                <div class="play-content-area">
+                    <div class="hp-box">
+                        <span style="font-size:12px;">❤️</span>
+                        <div class="hp-bar-outer"><div class="hp-bar-inner"></div></div>
+                        <span style="font-size:11px; font-weight:800;">100/100</span>
+                    </div>
+                    <div class="char-container">
+                        <div class="char-sprite">Hero</div>
+                        <div class="char-shadow"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="game-screen" id="screen-quest">
+                <div class="screen-header">
+                    <h1 class="screen-title">Quest</h1>
+                </div>
+                <div class="quest-section">
+                    <div class="section-label">Main Quest</div>
+                    <div class="quest-card">
+                        <div class="quest-header">
+                            <span class="quest-title-text">🥊 Push-Up</span>
+                            <span class="quest-lvl">LV.1</span>
+                        </div>
+                        <div class="sub-task-list">
+                            <div class="sub-task">
+                                <div>
+                                    <div class="task-info-title">Warm-Up</div>
+                                    <div class="task-info-desc">5 Minutes</div>
+                                </div>
+                                <span class="task-icon">🔥</span>
+                            </div>
+                            <div class="sub-task">
+                                <div>
+                                    <div class="task-info-title">Push-Up Session</div>
+                                    <div class="task-info-desc">20 Minutes</div>
+                                </div>
+                                <span class="task-icon">🧘</span>
+                            </div>
+                            <div class="sub-task">
+                                <div>
+                                    <div class="task-info-title">Cooldown</div>
+                                    <div class="task-info-desc">5 Minutes</div>
+                                </div>
+                                <span class="task-icon">❄️</span>
+                            </div>
+                        </div>
+                        <button class="action-btn">START QUEST</button>
+                    </div>
+
+                    <div class="section-label">Side Quest</div>
+                    <div class="quest-card">
+                        <div class="side-quest-body">
+                            <div>
+                                <div class="quest-title-text">🏋️ 50 Squats</div>
+                                <div class="task-info-desc" style="margin-top: 4px; max-width: 220px;">Perform 50 accurate squats using motion tracking.</div>
+                                <div class="reward-xp">+ 120 EXP</div>
+                            </div>
+                        </div>
+                        <button class="action-btn">START</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="game-screen" id="screen-profile">
+                <div class="profile-hero">
+                    <div class="settings-btn">⚙️</div>
+                    <div class="avatar-circle">👤</div>
+                    <div class="profile-name">NAME</div>
+                    <div class="profile-lvl">Level 23</div>
+                    <div class="exp-container">
+                        <div class="exp-labels">
+                            <span>EXP Progress</span>
+                            <span>1045/2000</span>
+                        </div>
+                        <div class="exp-bar-bg"><div class="exp-bar-fill"></div></div>
+                    </div>
+                </div>
+                <div class="stats-section">
+                    <div class="section-label">Upgrade Stats</div>
+                    <div class="stat-row">
+                        <div class="stat-label-box">ATK</div>
+                        <div class="stat-bar-outer"><div class="stat-bar-inner" style="width: 55%; background: #ef4444;"></div></div>
+                        <div class="stat-value">55</div>
+                        <div class="stat-plus-btn">+</div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-label-box">HP</div>
+                        <div class="stat-bar-outer"><div class="stat-bar-inner" style="width: 75%; background: #10b981;"></div></div>
+                        <div class="stat-value">98</div>
+                        <div class="stat-plus-btn">+</div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-label-box">STRENGTH</div>
+                        <div class="stat-bar-outer"><div class="stat-bar-inner" style="width: 45%; background: #f59e0b;"></div></div>
+                        <div class="stat-value">75</div>
+                        <div class="stat-plus-btn">+</div>
+                    </div>
+                </div>
+                <div class="stats-section">
+                    <div class="section-label">Achievements</div>
+                    <div class="achieve-grid">
+                        <div class="achieve-slot">🏆</div>
+                        <div class="achieve-slot">⭐</div>
+                        <div class="achieve-slot">🔒</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <nav class="bottom-nav">
+            <div class="nav-item" data-target="screen-shop">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                SHOP
+            </div>
+
+            <div class="nav-item" data-target="screen-equipment">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm0 10H6V6.91l6-2.25V12z"/></svg>
+                EQUIPMENT
+            </div>
+
+            <div class="nav-item play-main active" data-target="screen-play">
+                <div class="play-btn-circle">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M21.9 2.1c-.4-.4-1-.4-1.4 0l-4 4c-.3-.3-.8-.4-1.2-.2L11 8.3 15.7 13l2.4-4.3c.2-.4.1-.9-.2-1.2l4-4c.4-.4.4-1 0-1.4zM3.4 17.6L2.1 18.9c-.4.4-.4 1 0 1.4l1.6 1.6c.4.4 1 .4 1.4 0l1.3-1.3-3-3zm4.5-1.7L15 8.8l.2.2c.4.4 1 .4 1.4 0s.4-1 0-1.4l-.2-.2 2.1-2.1-3-3-2.1 2.1-.2-.2c-.4-.4-1-.4-1.4 0s-.4 1 0 1.4l.2.2-7.1 7.1 3 3z"/></svg>
+                </div>
+                <span>PLAY</span>
+            </div>
+
+            <div class="nav-item" data-target="screen-quest">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-2 14l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                QUEST
+            </div>
+
+            <div class="nav-item" data-target="screen-profile">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 12 10 12-4.48 12-12S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                PROFILE
+            </div>
+        </nav>
+
+    </div>
+        
+        
+        
+    </style>
+</head>
+<body>
+
+    <div class="mobile-container">
+        <div class="screens-wrapper">
+            </div>
+        
+        <nav class="bottom-nav">
+            </nav>
+    </div>
+
+    <script>
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function() {
+                // 1. ดึง ID ของหน้าจอเป้าหมายที่ผูกไว้กับ data-target
+                const targetScreenId = this.getAttribute('data-target');
+                
+                // 2. เคลียร์คลาส active ออกจากปุ่มเมนูทั้งหมด แล้วใส่ให้ปุ่มที่ถูกคลิก
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                this.classList.add('active');
+                
+                // 3. ซ่อนทุกหน้าจอเกม แล้วเปิดแสดงผลเฉพาะหน้าจอเป้าหมาย
+                document.querySelectorAll('.game-screen').forEach(screen => screen.classList.remove('active'));
+                document.getElementById(targetScreenId).classList.add('active');
+            });
+        });
+
+        // ควบคุมระบบเลือกแท็บย่อยภายในหน้าร้านค้า (Shop Tabs)
+        document.querySelectorAll('.shop-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.shop-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('Service Worker ลงทะเบียนสำเร็จ: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker ลงทะเบียนล้มเหลว: ', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
